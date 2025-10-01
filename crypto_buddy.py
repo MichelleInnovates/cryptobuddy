@@ -16,7 +16,7 @@ except Exception:
 class CryptoBuddy:
     def __init__(self):
         self.name = "CryptoBuddy"
-        self.api_key = os.getenv("COINGECKO_API_KEY", "CG-k4wGZdUCFNyC7UFL19YJN26i")
+        self.api_key = os.getenv("COINGECKO_API_KEY", "")  # No hardcoded key - use environment variable
         self.base_url = "https://api.coingecko.com/api/v3"
 
         # Map friendly names to CoinGecko IDs
