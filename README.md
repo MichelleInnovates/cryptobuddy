@@ -50,21 +50,6 @@ python crypto_buddy.py install
 ## Offline Fallback
 If the API or internet is unavailable, CryptoBuddy answers using a small built-in dataset with rule-based logic so you can still complete the assignment and demo.
 
-## For the PLP Assignment
-Include in your repo:
-- `crypto_buddy.py` (main bot)
-- `requirements.txt`
-- `README.md` with screenshots of a short conversation
-
-Submission checklist:
-- Record ~30s screen capture interacting with the bot
-- Add a 50-word summary: "How does this chatbot mimic basic AI decision-making?"
-- Push to GitHub and share the repo link
-
-## Troubleshooting
-- If ChatterBot fails to install, you can still run in rule-based mode (requests only)
-- Ensure internet access for live data
-- If rate-limited, try again later or rely on offline responses 
 
 ## Streamlit Web App
 Run the lightweight UI:
@@ -92,7 +77,6 @@ streamlit run app.py --server.port 8502
 
 ## Troubleshooting (common)
 - urllib3 missing: install via `python3 -m pip install urllib3==2.2.3`
-- ChatterBot optional: if install fails, the CLI still runs in rule-based mode
 - Rate limit/API errors: wait 60s (cache TTL) or switch to Rule-based mode
 - pyenv/venv: ensure you install packages with the same interpreter used to run
 
@@ -103,7 +87,4 @@ If you want to try ChatterBot, install separately (may require specific environm
 ```bash
 python3 -m pip install chatterbot==1.0.8 chatterbot-corpus==1.2.0 SQLAlchemy==1.4.46 pytz
 ```
-If installation fails, skip it — the bot runs fine without it.
-
-## 50-word summary (template)
-This chatbot mimics basic AI by mapping user intents to decision rules and combining simple heuristics with optional live market data. It scores coins using trend, market rank, and sustainability to produce recommendations. A conversational layer is optional; the core uses deterministic logic to provide consistent, explainable advice. 
+If installation fails, skip it the bot runs fine without it.
