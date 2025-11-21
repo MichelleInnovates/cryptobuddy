@@ -1,45 +1,27 @@
 import os
 import time
 import requests
+import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 from typing import List, Optional
 
-# -------------------- Config --------------------
-st.set_page_config(page_title="CryptoBuddy 🤖", page_icon="💰", layout="wide")
+# Config 
+st.set_page_config(page_title="CryptoBuddy Pro 🚀", page_icon="💰", layout="wide")
 
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY", "")
 COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 
-# -------------------- Offline Dataset --------------------
+#Offline Dataset 
 crypto_db = {
     "bitcoin": {"name": "Bitcoin", "symbol": "BTC", "trend": "rising 🚀", "sustainability": 3},
     "ethereum": {"name": "Ethereum", "symbol": "ETH", "trend": "stable ⚖️", "sustainability": 6},
     "cardano": {"name": "Cardano", "symbol": "ADA", "trend": "rising 📈", "sustainability": 8},
+    "solana": {"name": "Solana", "symbol": "SOL", "trend": "volatile ⚡", "sustainability": 7},
+    "ripple": {"name": "XRP", "symbol": "XRP", "trend": "stable ⚖️", "sustainability": 8},
 }
 
-# -------------------- Rule-based Logic --------------------
-def chatbot_logic(user_input: str) -> str:
-    user_input = user_input.lower().strip()
-    if not user_input:
-        return "🤖 Ask about Bitcoin, Ethereum, Cardano, trends, or sustainability."
-
-    if "sustainable" in user_input or "eco" in user_input or "green" in user_input:
-        return "🌱 Cardano is the most eco-friendly crypto!"
-    if "trend" in user_input or "trending" in user_input:
-        return "📊 Bitcoin and Cardano are currently rising, while Ethereum is stable."
-    if "bitcoin" in user_input:
-        meta = crypto_db["bitcoin"]
-        return f"Bitcoin is {meta['trend']} with sustainability score {meta['sustainability']}/10."
-    if "ethereum" in user_input:
-        meta = crypto_db["ethereum"]
-        return f"Ethereum is {meta['trend']} and has a sustainability score of {meta['sustainability']}/10."
-    if "cardano" in user_input:
-        meta = crypto_db["cardano"]
-        return f"Cardano is {meta['trend']} and scores {meta['sustainability']}/10 on sustainability."
-
-    return "🤖 Hmm... I’m not sure. Try asking about Bitcoin, Ethereum, Cardano, trends, or sustainability."
-
-# -------------------- Live Data (CoinGecko) --------------------
+# Helper Functions 
 def _headers():
     headers = {"accept": "application/json"}
     if COINGECKO_API_KEY:
@@ -48,6 +30,7 @@ def _headers():
 
 @st.cache_data(ttl=60)
 def fetch_market(ids: Optional[List[str]] = None):
+    """Fetches current market data for a list of coin IDs."""
     params = {
         "vs_currency": "usd",
         "order": "market_cap_desc",
@@ -64,196 +47,177 @@ def fetch_market(ids: Optional[List[str]] = None):
     except Exception:
         return None
 
-@st.cache_data(ttl=60)
-def fetch_coin(coin_id: str):
-    params = {
-        "localization": "false",
-        "tickers": "false",
-        "community_data": "false",
-        "developer_data": "false",
-    }
+@st.cache_data(ttl=300) # Cache charts longer (5 mins)
+def fetch_chart_data(coin_id: str, days: str = "7"):
+    """Fetches historical price data for charting."""
     try:
-        r = requests.get(f"{COINGECKO_BASE}/coins/{coin_id}", headers=_headers(), params=params, timeout=10)
+        url = f"{COINGECKO_BASE}/coins/{coin_id}/market_chart"
+        params = {"vs_currency": "usd", "days": days}
+        r = requests.get(url, headers=_headers(), params=params, timeout=10)
         if r.status_code == 200:
-            return r.json()
+            data = r.json()
+            prices = data.get("prices", [])
+            df = pd.DataFrame(prices, columns=["timestamp", "price"])
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            return df
         return None
     except Exception:
         return None
 
-# -------------------- UI Sidebar --------------------
+# UI & Logic
+
+# Sidebar
 with st.sidebar:
-    st.header("⚙️ Settings")
-    mode = st.radio("Mode", ["Rule-based", "Live (CoinGecko)"], index=0)
-    st.caption("Live mode uses CoinGecko API and caches responses for 60s.")
-
-    with st.expander("Shortcuts"):
-        col_a, col_b = st.columns(2)
-        with col_a:
-            if st.button("Trending", use_container_width=True):
-                st.session_state.setdefault("history", []).append(("You", "Which crypto is trending?"))
-                st.session_state.setdefault("pending_input", "Which crypto is trending?")
-        with col_b:
-            if st.button("Sustainable", use_container_width=True):
-                st.session_state.setdefault("history", []).append(("You", "Which coin is most sustainable?"))
-                st.session_state.setdefault("pending_input", "Which coin is most sustainable?")
-        if st.button("Recommend", use_container_width=True):
-            st.session_state.setdefault("history", []).append(("You", "Give me a recommendation"))
-            st.session_state.setdefault("pending_input", "Give me a recommendation")
-
+    st.header("⚙️ Dashboard Settings")
+    mode = st.radio("Data Source", ["Rule-based", "Live (CoinGecko)"], index=1)
+    
     st.divider()
-    if st.button("🧹 Clear chat", use_container_width=True):
+    st.subheader("💼 Mini Portfolio")
+    st.caption("Enter amount owned to track value:")
+    
+    portfolio_holdings = {}
+    portfolio_value = 0.0
+    
+    # Portfolio Inputs
+    for coin_id, meta in crypto_db.items():
+        amount = st.number_input(f"{meta['symbol']} Holdings", min_value=0.0, step=0.1, key=f"hold_{coin_id}")
+        if amount > 0:
+            portfolio_holdings[coin_id] = amount
+
+    if st.button("🧹 Clear Chat History", use_container_width=True):
         st.session_state.history = []
-        st.session_state.pop("last_reco", None)
-        st.session_state.pop("pending_input", None)
-        st.cache_data.clear()
+        st.rerun()
 
-# -------------------- Header --------------------
-st.title("💰 CryptoBuddy – Your AI Financial Sidekick 🤖")
-st.write("Ask about crypto trends and sustainability. Live mode adds real-time prices.")
-st.info("Disclaimer: Crypto is risky — always do your own research. This app is for educational purposes only.")
+# Main Header
+st.title("💰 CryptoBuddy Pro")
+st.markdown("### Your AI-Powered Financial Sidekick & Analytics Dashboard")
 
-# -------------------- Chat Input --------------------
+# Initialize portfolio value in session state
+if "portfolio_value" not in st.session_state:
+    st.session_state.portfolio_value = 0.0
+
+#Live Dashboard (Top Section)
+if mode == "Live (CoinGecko)":
+    ids = list(crypto_db.keys())
+    market_data = fetch_market(ids)
+    
+    if market_data:
+        # 1. Calculate Portfolio Value if holdings exist
+        portfolio_value = 0.0
+        if portfolio_holdings:
+            for coin in market_data:
+                cid = coin['id']
+                if cid in portfolio_holdings:
+                    value = coin['current_price'] * portfolio_holdings[cid]
+                    portfolio_value += value
+            
+            st.session_state.portfolio_value = portfolio_value
+            st.info(f"💼 **Total Portfolio Value:** ${portfolio_value:,.2f}")
+        else:
+            st.session_state.portfolio_value = 0.0
+
+        # 2. Quick Metric Cards
+        cols = st.columns(len(market_data))
+        for i, coin in enumerate(market_data):
+            with cols[i]:
+                change = coin.get('price_change_percentage_24h', 0)
+                st.metric(
+                    label=coin['symbol'].upper(),
+                    value=f"${coin['current_price']:,.2f}",
+                    delta=f"{change:.2f}%"
+                )
+        
+        # 3. Interactive Charting Section
+        st.subheader("📈 Market Trends Analysis")
+        selected_coin = st.selectbox("Select coin to view 7-day history:", [c['name'] for c in market_data])
+        
+        # Find ID for selected coin
+        selected_id = next(c['id'] for c in market_data if c['name'] == selected_coin)
+        
+        chart_df = fetch_chart_data(selected_id)
+        if chart_df is not None:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=chart_df['timestamp'], y=chart_df['price'], mode='lines', name='Price', line=dict(color='#00CC96')))
+            fig.update_layout(
+                title=f"{selected_coin} Price History (7 Days)",
+                xaxis_title="Date",
+                yaxis_title="Price (USD)",
+                margin=dict(l=20, r=20, t=40, b=20),
+                height=350
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Chart data unavailable (API rate limit or network error).")
+            
+        # 4. Data Export
+        st.subheader("📊 Raw Data Explorer")
+        df = pd.DataFrame(market_data)
+        # Clean up dataframe for display
+        display_cols = ['name', 'symbol', 'current_price', 'market_cap', 'total_volume', 'price_change_percentage_24h']
+        df_display = df[display_cols].copy()
+        df_display.columns = ['Name', 'Symbol', 'Price ($)', 'Market Cap', 'Volume', '24h Change (%)']
+        
+        st.dataframe(df_display, use_container_width=True)
+        
+        csv = df_display.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            "📥 Download Market Data (CSV)",
+            csv,
+            "crypto_market_data.csv",
+            "text/csv",
+            key='download-csv'
+        )
+
+    else:
+        st.error("⚠️ Live data unavailable. API limit reached or offline. Switch to Rule-based mode.")
+else:
+    # Rule-based mode: reset portfolio value
+    st.session_state.portfolio_value = 0.0
+
+#Chat Interface (Bottom Section)
+st.divider()
+st.subheader("💬 AI Chat Advisor")
+
 if "history" not in st.session_state:
     st.session_state.history = []
 
-user_query = st.text_input("💬 Type your question:", value=st.session_state.pop("pending_input", ""))
-
-# -------------------- Live Helpers --------------------
-def live_trending_response():
-    ids = list(crypto_db.keys())
-    with st.spinner("Fetching trending coins..."):
-        data = fetch_market(ids)
-    if not data:
-        return "❌ Unable to fetch live data. Try rule-based mode or later."
-    trending = [c for c in data if (c.get("price_change_percentage_24h") or 0) > 0]
-    trending.sort(key=lambda x: x.get("price_change_percentage_24h", 0), reverse=True)
-    lines = ["📈 Trending (Live):"]
-    for c in trending[:5]:
-        lines.append(f"- {c['name']} ({c['symbol'].upper()}): ${c['current_price']:,.2f} | 24h {c.get('price_change_percentage_24h', 0):+.2f}%")
-    if len(lines) == 1:
-        lines.append("- No positive movers in the last 24h among selected coins.")
-    return "\n".join(lines)
-
-def live_recommendation_response():
-    ids = list(crypto_db.keys())
-    with st.spinner("Computing recommendation..."):
-        data = fetch_market(ids)
-    if not data:
-        return "❌ Unable to fetch live data."
-    best = None
-    best_score = -1
-    for c in data:
-        score = 0
-        change = c.get("price_change_percentage_24h", 0) or 0
-        if change > 0:
-            score += 3 + min(change * 0.1, 2)
-        rank = c.get("market_cap_rank", 100)
-        if rank <= 5:
-            score += 2
-        elif rank <= 15:
-            score += 1
-        # add sustainability from offline map if known
-        sus = crypto_db.get(c["id"], {}).get("sustainability", None)
-        if sus is not None:
-            score += sus * 0.4
-        if score > best_score:
-            best, best_score = c, score
-    if not best:
-        return "❌ No recommendation available."
-    reco = (f"🏆 Balanced pick (Live): {best['name']} ({best['symbol'].upper()})\n"
-            f"Score: {best_score:.1f}/10 | Price: ${best['current_price']:,.2f} | 24h: {best.get('price_change_percentage_24h', 0):+.2f}%")
-    st.session_state["last_reco"] = reco
-    return reco
-
-# -------------------- Compare UI --------------------
-with st.expander("⚖️ Compare two coins"):
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        coin_a = st.selectbox("Coin A", list(crypto_db.keys()), format_func=lambda k: crypto_db[k]["name"])
-    with col2:
-        coin_b = st.selectbox("Coin B", list(crypto_db.keys()), index=1, format_func=lambda k: crypto_db[k]["name"])
-    with col3:
-        go = st.button("Compare")
-
-    if go:
-        if mode == "Live (CoinGecko)":
-            with st.spinner("Fetching live comparison..."):
-                a = fetch_coin(coin_a)
-                b = fetch_coin(coin_b)
-            if a and b:
-                pa = a["market_data"]["current_price"]["usd"]
-                pb = b["market_data"]["current_price"]["usd"]
-                ca = a["market_data"].get("price_change_percentage_24h", 0) or 0
-                cb = b["market_data"].get("price_change_percentage_24h", 0) or 0
-                mca = a["market_data"]["market_cap"]["usd"]
-                mcb = b["market_data"]["market_cap"]["usd"]
-                st.success(f"{a['name']} vs {b['name']} (Live)\n\n"
-                           f"Price: ${pa:,.2f} vs ${pb:,.2f}\n"
-                           f"24h: {ca:+.2f}% vs {cb:+.2f}%\n"
-                           f"Market Cap: ${mca:,.0f} vs ${mcb:,.0f}")
+# Chat Logic
+def generate_response(query, mode_type):
+    query = query.lower()
+    
+    # Rule-based fallback
+    if mode_type == "Rule-based":
+        if "bitcoin" in query: return "Bitcoin is rising 🚀 with a sustainability score of 3/10."
+        if "ethereum" in query: return "Ethereum is stable ⚖️ with a sustainability score of 6/10."
+        if "sustainable" in query: return "Cardano (ADA) is currently our top pick for eco-friendliness!"
+        return "I can tell you about Bitcoin, Ethereum, or sustainability trends. Try switching to Live mode for real data!"
+    
+    # Live Logic
+    if mode_type == "Live (CoinGecko)":
+        if "price" in query:
+            return "Check the dashboard above for the latest live prices! 👆"
+        if "portfolio" in query:
+            pv = st.session_state.get("portfolio_value", 0.0)
+            if pv > 0:
+                return f"Your current portfolio value is estimated at ${pv:,.2f} based on the holdings in the sidebar."
             else:
-                st.error("Unable to fetch live comparison.")
-        else:
-            sa = crypto_db[coin_a]["sustainability"]
-            sb = crypto_db[coin_b]["sustainability"]
-            ta = crypto_db[coin_a]["trend"]
-            tb = crypto_db[coin_b]["trend"]
-            st.info(f"{crypto_db[coin_a]['name']} vs {crypto_db[coin_b]['name']} (Rule-based)\n\n"
-                    f"Trend: {ta} vs {tb}\n"
-                    f"Sustainability: {sa}/10 vs {sb}/10")
+                return "You haven't entered any holdings yet. Use the sidebar to add your crypto holdings and track your portfolio value!"
+        if "recommend" in query:
+            return "Based on current data, Cardano scores highest on sustainability, while Bitcoin has the highest volume."
+    
+    return "I'm your CryptoBuddy! Ask me about trends, prices, or your portfolio."
 
-# -------------------- Quick Cards --------------------
-st.subheader("🔎 Quick glance")
-cols = st.columns(3)
-for i, key in enumerate(crypto_db.keys()):
-    with cols[i % 3]:
-        box = st.container(border=True)
-        with box:
-            if mode == "Live (CoinGecko)":
-                with st.spinner("Loading..."):
-                    d = fetch_market([key])
-                if d:
-                    c = d[0]
-                    st.markdown(f"**{c['name']} ({c['symbol'].upper()})**")
-                    st.write(f"${c['current_price']:,.2f} | 24h {c.get('price_change_percentage_24h', 0):+.2f}%")
-                else:
-                    st.markdown(f"**{crypto_db[key]['name']}**")
-                    st.write("Live data unavailable")
-            else:
-                st.markdown(f"**{crypto_db[key]['name']} ({crypto_db[key]['symbol']})**")
-                st.write(f"{crypto_db[key]['trend']} | Sustainability {crypto_db[key]['sustainability']}/10")
+# Chat Input
+user_input = st.chat_input("Ask a question (e.g., 'How is my portfolio?', 'Is Bitcoin sustainable?')")
 
-# -------------------- Chat Flow --------------------
-if user_query:
-    if mode == "Live (CoinGecko)":
-        # Map common intents to live responses
-        q = user_query.lower()
-        if "trend" in q or "trending" in q:
-            answer = live_trending_response()
-        elif "recommend" in q or "best" in q or "balanced" in q or "invest" in q:
-            answer = live_recommendation_response()
-        else:
-            # Fallback to rule-based phrasing when no specific live intent
-            answer = chatbot_logic(user_query)
+if user_input:
+    st.session_state.history.append(("You", user_input))
+    response = generate_response(user_input, mode)
+    st.session_state.history.append(("Bot", response))
+
+# Display Chat
+for role, text in st.session_state.history:
+    if role == "You":
+        st.chat_message("user").write(text)
     else:
-        answer = chatbot_logic(user_query)
-
-    st.session_state.history.append(("You", user_query))
-    st.session_state.history.append(("CryptoBuddy", answer))
-
-# Display chat history
-st.subheader("💬 Chat")
-for speaker, message in st.session_state.history:
-    if speaker == "You":
-        st.markdown(f"**🧑 You:** {message}")
-    else:
-        st.markdown(f"**🤖 CryptoBuddy:** {message}")
-
-# Copy last recommendation
-colx, coly = st.columns([1, 3])
-with colx:
-    if st.button("📋 Copy last recommendation"):
-        if st.session_state.get("last_reco"):
-            st.code(st.session_state["last_reco"])
-        else:
-            st.warning("No recommendation yet — ask for one!") 
+        st.chat_message("assistant").write(text)
