@@ -1,90 +1,70 @@
-# CryptoBuddy  Your AI-Powered Cryptocurrency Advisor
+# CryptoBuddy Pro 🚀 – Your AI Financial Sidekick & Dashboard
 
-Friendly rule-based chatbot with optional ChatterBot conversation and CoinGecko live data.
+A comprehensive cryptocurrency advisor that combines an AI-powered chatbot with a professional analytics dashboard. Now features interactive charts, portfolio tracking, and live data export.
 
-## Features
-- Live prices and market data (CoinGecko) when online
-- Rule-based offline fallback using a predefined dataset
-- Sustainability insights (energy use, consensus, scores)
-- Compare coins, trending coins, long-term picks, and a balanced recommendation
-- Optional ChatterBot training for small talk
+## 🌟 New Pro Features
+- **Interactive Market Charts:** Visualise 7-day price trends with zoomable interactive graphs (powered by Plotly).
+- **Personal Portfolio Tracker:** Input your holdings to see your real-time total portfolio value.
+- **Data Export:** Download live market data as a CSV file for your own analysis.
+- **Live Dashboard:** Real-time metric cards for top cryptocurrencies.
+- **Smart Chat:** AI advisor aware of your portfolio context and market trends.
 
-## Requirements
-See `requirements.txt` for pinned versions. Minimal run requires only `requests`.
+## ⚡ Standard Features
+- **Hybrid Modes:** Switch between "Live" (CoinGecko API) and "Rule-based" (Offline) modes.
+- **Sustainability Insights:** ESG scores, energy usage, and consensus mechanism details.
+- **Comparison Tool:** Compare coins side-by-side.
+- **CLI Version:** A lightweight command-line interface for quick checks.
 
-## Installation
+## 📦 Requirements
+See `requirements.txt` for pinned versions.
+* **Core:** `requests`, `streamlit`
+* **Analytics & Viz:** `pandas`, `plotly`
+
+## 🚀 Installation
+
 ```bash
-# Create virtual env (recommended)
+# 1. Create a virtual environment (recommended)
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install minimal or full
+# 2. Install dependencies (now includes pandas & plotly)
 pip install -r requirements.txt
-```
+🔑 Environment Setup
+Optionally set a CoinGecko API key (a demo key is used by default, which has rate limits):
 
-## Environment
-Optionally set a CoinGecko API key (a demo key is used by default):
-```bash
+Bash
+
 export COINGECKO_API_KEY=your_key_here
-```
+🖥️ Running the Web App (Recommended)
+The Streamlit app contains the new Pro Dashboard features.
 
-## Run
-```bash
-python crypto_buddy.py
-```
+Bash
 
-Pass `install` to print quick install notes:
-```bash
-python crypto_buddy.py install
-```
-
-## Example Prompts
-- What's the price of Bitcoin?
-- Which crypto is trending?
-- What's the most sustainable coin?
-- Best for long-term growth?
-- Compare Bitcoin and Ethereum
-- Show all cryptocurrencies
-- Give me a recommendation
-
-## Offline Fallback
-If the API or internet is unavailable, CryptoBuddy answers using a small built-in dataset with rule-based logic so you can still complete the assignment and demo.
-
-
-## Streamlit Web App
-Run the lightweight UI:
-```bash
-pip install -r requirements.txt  # ensures streamlit is installed
 streamlit run app.py
-```
+Open the URL: Usually http://localhost:8501
 
-Open the URL printed in the terminal (usually http://localhost:8501). Type questions like:
-- "Which crypto is trending?"
-- "Which coin is most sustainable?"
-- "Bitcoin" 
+Portfolio: Open the Sidebar (left) to enter your crypto holdings.
 
-## Streamlit Features (app.py)
-- Clear chat button and quick prompts (Trending, Sustainable, Recommend)
-- Mode switch: Rule-based vs Live (CoinGecko, cached 60s)
-- Compare two coins (live or rule-based)
-- Quick glance cards for BTC/ETH/ADA
-- Copy last recommendation button
+Charts: Select a coin in the "Market Trends Analysis" section to view its history.
 
-## Run Streamlit on a different port
-```bash
-streamlit run app.py --server.port 8502
-```
+Export: Scroll to "Raw Data Explorer" to download the CSV.
 
-## Troubleshooting (common)
-- urllib3 missing: install via `python3 -m pip install urllib3==2.2.3`
-- Rate limit/API errors: wait 60s (cache TTL) or switch to Rule-based mode
-- pyenv/venv: ensure you install packages with the same interpreter used to run
+📟 Running the CLI (Legacy)
+The command-line tool is still available for text-only interactions:
 
-## Optional: ChatterBot (CLI conversational extras)
-ChatterBot is not installed by default because compatible wheels are often unavailable on some Python versions (e.g., 3.8 in some environments). The CLI (`crypto_buddy.py`) works without it using rule-based logic and live data.
+Bash
 
-If you want to try ChatterBot, install separately (may require specific environments):
-```bash
+python crypto_buddy.py
+🛠️ Troubleshooting
+"Module not found: pandas/plotly": Ensure you re-ran pip install -r requirements.txt after the update.
+
+API Rate Limits: If charts or data stop loading, wait 60 seconds (the cache will clear) or switch to "Rule-based" mode in the sidebar.
+
+Urllib3 errors: If you see SSL warnings, try pip install urllib3==2.2.3.
+
+🤖 Optional: ChatterBot
+The CLI version supports ChatterBot for small talk. This is optional and not required for the Web Dashboard.
+
+Bash
+
 python3 -m pip install chatterbot==1.0.8 chatterbot-corpus==1.2.0 SQLAlchemy==1.4.46 pytz
-```
-If installation fails, skip it the bot runs fine without it.
